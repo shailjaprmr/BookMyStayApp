@@ -3,8 +3,6 @@ import java.util.*;
 /**
  * Use Case 8: Booking History & Reporting
  * Maintains a chronological audit trail of confirmed reservations.
- * @author Devanshu Lingwal
- * @version 8.0
  */
 
 // 1. Data Model: Represents a completed, immutable transaction record
