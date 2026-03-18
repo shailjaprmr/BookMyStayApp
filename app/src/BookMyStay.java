@@ -1,83 +1,73 @@
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
 
 /**
- * Use Case 5: Booking Request (First-Come-First-Served)
- * demonstrates the use of a Queue to manage booking intent fairly.
+ * Use Case 9: Error Handling & Validation
+ * demonstrates custom exceptions and fail-fast validation logic.
  * @author Devanshu Lingwal
- * @version 5.0
+ * @version 9.0
  */
 
-// 1. Domain Model: Represents a Guest's intent to book
-class ReservationRequest {
-    private String guestName;
-    private String roomType;
-
-    public ReservationRequest(String guestName, String roomType) {
-        this.guestName = guestName;
-        this.roomType = roomType;
-    }
-
-    @Override
-    public String toString() {
-        return "Request [Guest: " + guestName + ", Room: " + roomType + "]";
-    }
+// 1. Custom Exceptions for Domain-Specific Errors
+class InvalidRoomTypeException extends Exception {
+    public InvalidRoomTypeException(String message) { super(message); }
 }
 
-// 2. Booking Request Queue: Manages the arrival order
-class BookingQueue {
-    // Using LinkedList as the underlying implementation for the Queue interface
-    private Queue<ReservationRequest> queue;
+class InsufficientInventoryException extends Exception {
+    public InsufficientInventoryException(String message) { super(message); }
+}
 
-    public BookingQueue() {
-        this.queue = new LinkedList<>();
-    }
+// 2. Validator Class to separate validation logic from business logic
+class BookingValidator {
+    public static void validate(String roomType, Map<String, Integer> inventory)
+            throws InvalidRoomTypeException, InsufficientInventoryException {
 
-    /**
-     * Adds a request to the end of the line (Enqueue)
-     */
-    public void submitRequest(ReservationRequest request) {
-        queue.add(request);
-        System.out.println("Submitted: " + request);
-    }
+        // Check 1: Is the room type valid (Case Sensitive)?
+        if (!inventory.containsKey(roomType)) {
+            throw new InvalidRoomTypeException("Error: Room type '" + roomType + "' does not exist in our system.");
+        }
 
-    /**
-     * Displays all pending requests in order
-     */
-    public void showPendingRequests() {
-        System.out.println("\n--- Current Booking Queue (Waiting List) ---");
-        if (queue.isEmpty()) {
-            System.out.println("No pending requests.");
-        } else {
-            for (ReservationRequest req : queue) {
-                System.out.println(">> " + req);
-            }
+        // Check 2: Is there stock available?
+        if (inventory.get(roomType) <= 0) {
+            throw new InsufficientInventoryException("Error: No inventory left for '" + roomType + "'.");
         }
     }
-
-    // This method prepares the system for the next use case (Processing)
-    public ReservationRequest getNextRequest() {
-        return queue.poll();
-    }
 }
-public class BookMyStay
-{
-    public static void main(String[] args)
-    {
-        System.out.println("Book My Stay App - Version 5.0");
+
+public class BookMyStay {
+    public static void main(String[] args) {
+        System.out.println("Book My Stay App - Version 9.0");
         System.out.println("------------------------------------------");
 
-        BookingQueue hotelQueue = new BookingQueue();
+        // Setup Initial Inventory
+        Map<String, Integer> inventory = new HashMap<>();
+        inventory.put("Single", 1);
+        inventory.put("Suite", 0);
 
-        // 3. Simulating multiple guests submitting requests at peak time
-        hotelQueue.submitRequest(new ReservationRequest("Devanshu", "Suite Room"));
-        hotelQueue.submitRequest(new ReservationRequest("Aarav", "Single Room"));
-        hotelQueue.submitRequest(new ReservationRequest("Isha", "Double Room"));
+        // Test Scenarios with Try-Catch Blocks
+        processSafeBooking("Devanshu", "Single", inventory); // Should succeed
+        processSafeBooking("Aarav", "Deluxe", inventory);    // Should fail (Invalid Type)
+        processSafeBooking("Isha", "Suite", inventory);      // Should fail (No Stock)
+        processSafeBooking("Rohan", "single", inventory);    // Should fail (Case Sensitive check)
+    }
 
-        // 4. Verifying that the order is preserved (FIFO)
-        hotelQueue.showPendingRequests();
+    public static void processSafeBooking(String guest, String type, Map<String, Integer> inv) {
+        try {
+            System.out.println("Attempting to book '" + type + "' for " + guest + "...");
 
-        System.out.println("\nNote: Requests are queued but inventory remains untouched.");
-        System.out.println("Ready for Allocation Logic in the next stage.");
+            // Fail-Fast: Validate before any state change
+            BookingValidator.validate(type, inv);
+
+            // If we reach here, validation passed
+            inv.put(type, inv.get(type) - 1);
+            System.out.println("SUCCESS: Booking confirmed for " + guest);
+
+        } catch (InvalidRoomTypeException | InsufficientInventoryException e) {
+            // Graceful Failure Handling
+            System.err.println(e.getMessage());
+        } catch (Exception e) {
+            System.err.println("An unexpected error occurred: " + e.getMessage());
+        } finally {
+            System.out.println("------------------------------------------");
+        }
     }
 }
