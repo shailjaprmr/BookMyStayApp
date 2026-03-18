@@ -1,81 +1,95 @@
 import java.util.*;
 
 /**
- * Use Case 6: Reservation Confirmation & Room Allocation
- * Implements unique room ID generation and inventory synchronization.
- * @author Devanshu Lingwal
- * @version 6.0
+ * Use Case 7: Add-On Service Selection
+ * Demonstrates a One-to-Many mapping between Reservations and Services.
  */
 
-class BookingService {
-    // Maps Room Type -> Set of Unique Occupied Room IDs
-    private Map<String, Set<String>> allocatedRooms;
-    private Map<String, Integer> inventory;
-    private int idCounter = 101; // Simple counter for unique ID generation
+// 1. Service Domain Model
+class AddOnService {
+    private String name;
+    private double cost;
 
-    public BookingService(Map<String, Integer> inventory) {
-        this.inventory = inventory;
-        this.allocatedRooms = new HashMap<>();
-        // Initialize sets for each room type
-        for (String type : inventory.keySet()) {
-            allocatedRooms.put(type, new HashSet<>());
-        }
+    public AddOnService(String name, double cost) {
+        this.name = name;
+        this.cost = cost;
     }
 
-    /**
-     * Processes a single request: Dequeue -> Check -> Allocate -> Decrement
-     */
-    public void processBooking(String guestName, String roomType) {
-        int available = inventory.getOrDefault(roomType, 0);
+    public String getName() { return name; }
+    public double getCost() { return cost; }
 
-        if (available > 0) {
-            // 1. Generate Unique Room ID
-            String roomId = roomType.substring(0, 1).toUpperCase() + "-" + idCounter++;
-
-            // 2. Uniqueness Enforcement using Set
-            Set<String> assignedSet = allocatedRooms.get(roomType);
-            if (!assignedSet.contains(roomId)) {
-                assignedSet.add(roomId);
-
-                // 3. Atomic Logical Operation: Decrement Inventory
-                inventory.put(roomType, available - 1);
-
-                System.out.println("CONFIRMED: Guest " + guestName +
-                        " allocated Room [" + roomId + "] (" + roomType + ")");
-            }
-        } else {
-            System.out.println("REJECTED: No " + roomType + " available for " + guestName);
-        }
-    }
-
-    public void displayFinalState() {
-        System.out.println("\n--- Final Allocation Report ---");
-        allocatedRooms.forEach((type, rooms) -> {
-            System.out.println(type + " Occupied IDs: " + rooms);
-            System.out.println(type + " Remaining Inventory: " + inventory.get(type));
-        });
+    @Override
+    public String toString() {
+        return name + " (" + cost + " INR)";
     }
 }
 
-public class BookMyStay
-{
+// 2. Service Manager: Handles the association logic
+class AddOnServiceManager {
+    // Map: Reservation ID -> List of selected services
+    private Map<String, List<AddOnService>> reservationServices;
+
+    public AddOnServiceManager() {
+        this.reservationServices = new HashMap<>();
+    }
+
+    /**
+     * Attaches a service to a specific reservation ID.
+     */
+    public void addServiceToReservation(String reservationId, AddOnService service) {
+        // computeIfAbsent ensures a list exists for the ID before adding
+        reservationServices.computeIfAbsent(reservationId, k -> new ArrayList<>()).add(service);
+        System.out.println("Added " + service.getName() + " to Reservation: " + reservationId);
+    }
+
+    /**
+     * Calculates total additional cost for a reservation.
+     */
+    public double calculateTotalServiceCost(String reservationId) {
+        List<AddOnService> services = reservationServices.get(reservationId);
+        if (services == null) return 0.0;
+
+        return services.stream().mapToDouble(AddOnService::getCost).sum();
+    }
+
+    public void displayServices(String reservationId) {
+        List<AddOnService> services = reservationServices.get(reservationId);
+        System.out.println("Services for " + reservationId + ": " +
+                (services != null ? services : "None"));
+    }
+}
+
+public class BookMyStay {
     public static void main(String[] args) {
-        System.out.println("Book My Stay App - Version 6.0");
+        System.out.println("Book My Stay App - Version 7.0");
         System.out.println("------------------------------------------");
 
-        // Setup Initial Inventory
-        Map<String, Integer> hotelInventory = new HashMap<>();
-        hotelInventory.put("Single", 2);
-        hotelInventory.put("Suite", 1);
+        AddOnServiceManager serviceManager = new AddOnServiceManager();
 
-        BookingService service = new BookingService(hotelInventory);
+        // Define available services
+        AddOnService breakfast = new AddOnService("Buffet Breakfast", 500.0);
+        AddOnService spa = new AddOnService("Spa Treatment", 2000.0);
+        AddOnService wifi = new AddOnService("Premium WiFi", 300.0);
 
-        // Simulate processing requests from the UC5 Queue
-        service.processBooking("Devanshu", "Suite");
-        service.processBooking("Aarav", "Single");
-        service.processBooking("Isha", "Suite"); // Should be rejected (Sold out)
-        service.processBooking("Rohan", "Single");
+        // Simulation: Assigning services to unique Reservation IDs from UC6
+        String resId1 = "S-101";
+        String resId2 = "D-102";
 
-        service.displayFinalState();
+        serviceManager.addServiceToReservation(resId1, breakfast);
+        serviceManager.addServiceToReservation(resId1, wifi);
+        serviceManager.addServiceToReservation(resId2, spa);
+
+        System.out.println("------------------------------------------");
+
+        // Output results
+        serviceManager.displayServices(resId1);
+        System.out.println("Total Add-on Cost for " + resId1 + ": " +
+                serviceManager.calculateTotalServiceCost(resId1) + " INR");
+
+        System.out.println("\n");
+
+        serviceManager.displayServices(resId2);
+        System.out.println("Total Add-on Cost for " + resId2 + ": " +
+                serviceManager.calculateTotalServiceCost(resId2) + " INR");
     }
 }
