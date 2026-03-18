@@ -1,83 +1,84 @@
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
 
 /**
- * Use Case 5: Booking Request (First-Come-First-Served)
- * demonstrates the use of a Queue to manage booking intent fairly.
+ * Use Case 8: Booking History & Reporting
+ * Maintains a chronological audit trail of confirmed reservations.
  * @author Devanshu Lingwal
- * @version 5.0
+ * @version 8.0
  */
 
-// 1. Domain Model: Represents a Guest's intent to book
-class ReservationRequest {
+// 1. Data Model: Represents a completed, immutable transaction record
+class ConfirmedBooking {
+    private String reservationId;
     private String guestName;
     private String roomType;
+    private double totalCost;
+    private long timestamp;
 
-    public ReservationRequest(String guestName, String roomType) {
-        this.guestName = guestName;
-        this.roomType = roomType;
+    public ConfirmedBooking(String resId, String name, String type, double cost) {
+        this.reservationId = resId;
+        this.guestName = name;
+        this.roomType = type;
+        this.totalCost = cost;
+        this.timestamp = System.currentTimeMillis();
     }
 
     @Override
     public String toString() {
-        return "Request [Guest: " + guestName + ", Room: " + roomType + "]";
+        return String.format("[%tT] ID: %s | Guest: %-10s | Room: %-10s | Total: %.2f INR",
+                timestamp, reservationId, guestName, roomType, totalCost);
     }
 }
 
-// 2. Booking Request Queue: Manages the arrival order
-class BookingQueue {
-    // Using LinkedList as the underlying implementation for the Queue interface
-    private Queue<ReservationRequest> queue;
+// 2. Booking History Service: Manages the audit trail
+class BookingHistoryService {
+    // List preserves the chronological order of confirmation
+    private List<ConfirmedBooking> history;
 
-    public BookingQueue() {
-        this.queue = new LinkedList<>();
+    public BookingHistoryService() {
+        this.history = new ArrayList<>();
     }
 
-    /**
-     * Adds a request to the end of the line (Enqueue)
-     */
-    public void submitRequest(ReservationRequest request) {
-        queue.add(request);
-        System.out.println("Submitted: " + request);
+    public void recordBooking(ConfirmedBooking booking) {
+        history.add(booking);
     }
 
-    /**
-     * Displays all pending requests in order
-     */
-    public void showPendingRequests() {
-        System.out.println("\n--- Current Booking Queue (Waiting List) ---");
-        if (queue.isEmpty()) {
-            System.out.println("No pending requests.");
-        } else {
-            for (ReservationRequest req : queue) {
-                System.out.println(">> " + req);
-            }
+    // 3. Reporting Service: Generates summaries without modifying the data
+    public void generateSummaryReport() {
+        System.out.println("\n--- OFFICIAL BOOKING HISTORY REPORT ---");
+        if (history.isEmpty()) {
+            System.out.println("No records found.");
+            return;
         }
-    }
 
-    // This method prepares the system for the next use case (Processing)
-    public ReservationRequest getNextRequest() {
-        return queue.poll();
+        double totalRevenue = 0;
+        for (ConfirmedBooking record : history) {
+            System.out.println(record);
+            // In a real app, cost might be fetched from a field, here we sum for the report
+            // totalRevenue += record.getTotalCost(); // Simplified for this UC
+        }
+        System.out.println("---------------------------------------");
+        System.out.println("Total Bookings Processed: " + history.size());
     }
 }
-public class BookMyStay
-{
-    public static void main(String[] args)
-    {
-        System.out.println("Book My Stay App - Version 5.0");
+
+public class BookMyStay {
+    public static void main(String[] args) {
+        System.out.println("Book My Stay App - Version 8.0");
         System.out.println("------------------------------------------");
 
-        BookingQueue hotelQueue = new BookingQueue();
+        BookingHistoryService historyService = new BookingHistoryService();
 
-        // 3. Simulating multiple guests submitting requests at peak time
-        hotelQueue.submitRequest(new ReservationRequest("Devanshu", "Suite Room"));
-        hotelQueue.submitRequest(new ReservationRequest("Aarav", "Single Room"));
-        hotelQueue.submitRequest(new ReservationRequest("Isha", "Double Room"));
+        // Simulating the arrival of confirmed bookings from UC6 and UC7
+        System.out.println("Recording confirmed transactions...");
 
-        // 4. Verifying that the order is preserved (FIFO)
-        hotelQueue.showPendingRequests();
+        historyService.recordBooking(new ConfirmedBooking("S-101", "Devanshu", "Suite", 5800.0));
+        historyService.recordBooking(new ConfirmedBooking("D-102", "Aarav", "Double", 2500.0));
+        historyService.recordBooking(new ConfirmedBooking("S-103", "Isha", "Single", 1800.0));
 
-        System.out.println("\nNote: Requests are queued but inventory remains untouched.");
-        System.out.println("Ready for Allocation Logic in the next stage.");
+        // Admin requests the report
+        historyService.generateSummaryReport();
+
+        System.out.println("\nNote: Data is stored in-memory, preserving insertion order.");
     }
 }
