@@ -1,83 +1,81 @@
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
 
 /**
- * Use Case 5: Booking Request (First-Come-First-Served)
- * demonstrates the use of a Queue to manage booking intent fairly.
+ * Use Case 6: Reservation Confirmation & Room Allocation
+ * Implements unique room ID generation and inventory synchronization.
  * @author Devanshu Lingwal
- * @version 5.0
+ * @version 6.0
  */
 
-// 1. Domain Model: Represents a Guest's intent to book
-class ReservationRequest {
-    private String guestName;
-    private String roomType;
+class BookingService {
+    // Maps Room Type -> Set of Unique Occupied Room IDs
+    private Map<String, Set<String>> allocatedRooms;
+    private Map<String, Integer> inventory;
+    private int idCounter = 101; // Simple counter for unique ID generation
 
-    public ReservationRequest(String guestName, String roomType) {
-        this.guestName = guestName;
-        this.roomType = roomType;
-    }
-
-    @Override
-    public String toString() {
-        return "Request [Guest: " + guestName + ", Room: " + roomType + "]";
-    }
-}
-
-// 2. Booking Request Queue: Manages the arrival order
-class BookingQueue {
-    // Using LinkedList as the underlying implementation for the Queue interface
-    private Queue<ReservationRequest> queue;
-
-    public BookingQueue() {
-        this.queue = new LinkedList<>();
-    }
-
-    /**
-     * Adds a request to the end of the line (Enqueue)
-     */
-    public void submitRequest(ReservationRequest request) {
-        queue.add(request);
-        System.out.println("Submitted: " + request);
-    }
-
-    /**
-     * Displays all pending requests in order
-     */
-    public void showPendingRequests() {
-        System.out.println("\n--- Current Booking Queue (Waiting List) ---");
-        if (queue.isEmpty()) {
-            System.out.println("No pending requests.");
-        } else {
-            for (ReservationRequest req : queue) {
-                System.out.println(">> " + req);
-            }
+    public BookingService(Map<String, Integer> inventory) {
+        this.inventory = inventory;
+        this.allocatedRooms = new HashMap<>();
+        // Initialize sets for each room type
+        for (String type : inventory.keySet()) {
+            allocatedRooms.put(type, new HashSet<>());
         }
     }
 
-    // This method prepares the system for the next use case (Processing)
-    public ReservationRequest getNextRequest() {
-        return queue.poll();
+    /**
+     * Processes a single request: Dequeue -> Check -> Allocate -> Decrement
+     */
+    public void processBooking(String guestName, String roomType) {
+        int available = inventory.getOrDefault(roomType, 0);
+
+        if (available > 0) {
+            // 1. Generate Unique Room ID
+            String roomId = roomType.substring(0, 1).toUpperCase() + "-" + idCounter++;
+
+            // 2. Uniqueness Enforcement using Set
+            Set<String> assignedSet = allocatedRooms.get(roomType);
+            if (!assignedSet.contains(roomId)) {
+                assignedSet.add(roomId);
+
+                // 3. Atomic Logical Operation: Decrement Inventory
+                inventory.put(roomType, available - 1);
+
+                System.out.println("CONFIRMED: Guest " + guestName +
+                        " allocated Room [" + roomId + "] (" + roomType + ")");
+            }
+        } else {
+            System.out.println("REJECTED: No " + roomType + " available for " + guestName);
+        }
+    }
+
+    public void displayFinalState() {
+        System.out.println("\n--- Final Allocation Report ---");
+        allocatedRooms.forEach((type, rooms) -> {
+            System.out.println(type + " Occupied IDs: " + rooms);
+            System.out.println(type + " Remaining Inventory: " + inventory.get(type));
+        });
     }
 }
+
 public class BookMyStay
 {
-    public static void main(String[] args)
-    {
-        System.out.println("Book My Stay App - Version 5.0");
+    public static void main(String[] args) {
+        System.out.println("Book My Stay App - Version 6.0");
         System.out.println("------------------------------------------");
 
-        BookingQueue hotelQueue = new BookingQueue();
+        // Setup Initial Inventory
+        Map<String, Integer> hotelInventory = new HashMap<>();
+        hotelInventory.put("Single", 2);
+        hotelInventory.put("Suite", 1);
 
-        // 3. Simulating multiple guests submitting requests at peak time
-        hotelQueue.submitRequest(new ReservationRequest("Devanshu", "Suite Room"));
-        hotelQueue.submitRequest(new ReservationRequest("Aarav", "Single Room"));
-        hotelQueue.submitRequest(new ReservationRequest("Isha", "Double Room"));
+        BookingService service = new BookingService(hotelInventory);
 
-        // 4. Verifying that the order is preserved (FIFO)
-        hotelQueue.showPendingRequests();
+        // Simulate processing requests from the UC5 Queue
+        service.processBooking("Devanshu", "Suite");
+        service.processBooking("Aarav", "Single");
+        service.processBooking("Isha", "Suite"); // Should be rejected (Sold out)
+        service.processBooking("Rohan", "Single");
 
-        System.out.println("\nNote: Requests are queued but inventory remains untouched.");
-        System.out.println("Ready for Allocation Logic in the next stage.");
+        service.displayFinalState();
     }
 }
